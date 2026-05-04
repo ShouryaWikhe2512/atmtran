@@ -11,12 +11,13 @@ import type {
   BalanceResponse,
   HealthResponse,
   MutationResponse,
+  OperationSummary,
   ToastMessage,
   Transaction,
   TransactionsResponse,
 } from "./components/dashboard-types";
 
-const BASE_URL = "http://204.90.115.200:6000";
+const BASE_URL = "/api/atm";
 
 type MenuTab =
   | "Dashboard"
@@ -28,12 +29,14 @@ type MenuTab =
 export default function Home() {
   const [activeTab, setActiveTab] = useState<MenuTab>("Dashboard");
   const [accountId, setAccountId] = useState("1001");
+  const [draftAccountId, setDraftAccountId] = useState("1001");
   const [amount, setAmount] = useState("500");
   const [balance, setBalance] = useState<number | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [latestOperation, setLatestOperation] = useState<OperationSummary | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isLoadingAccount, setIsLoadingAccount] = useState(true);
   const [isCheckingBalance, setIsCheckingBalance] = useState(false);
@@ -59,7 +62,18 @@ export default function Home() {
     targetAccountId: string,
     options?: { silent?: boolean; announce?: boolean },
   ) => {
+    const normalizedAccountId = targetAccountId.trim();
     const silent = options?.silent ?? false;
+
+    if (!normalizedAccountId) {
+      setErrorMessage("Please enter a valid account ID.");
+      pushToast("Please enter a valid account ID.", "error");
+      setIsLoadingAccount(false);
+      if (!silent) {
+        setIsCheckingBalance(false);
+      }
+      return;
+    }
 
     if (!silent) {
       setIsCheckingBalance(true);
@@ -70,8 +84,8 @@ export default function Home() {
 
     try {
       const [balanceResponse, transactionsResponse] = await Promise.all([
-        fetch(`${BASE_URL}/balance/${targetAccountId}`),
-        fetch(`${BASE_URL}/transactions/${targetAccountId}`),
+        fetch(`${BASE_URL}/balance/${normalizedAccountId}`),
+        fetch(`${BASE_URL}/transactions/${normalizedAccountId}`),
       ]);
 
       const balanceData: BalanceResponse = await balanceResponse.json();
@@ -89,9 +103,10 @@ export default function Home() {
       setBalance(balanceData.balance ?? 0);
       setTransactions(transactionsData.transactions ?? []);
       setLastUpdated(new Date().toISOString());
+      setAccountId(normalizedAccountId);
 
       if (options?.announce) {
-        pushToast(`Balance refreshed for account ${targetAccountId}.`, "success");
+        pushToast(`Balance refreshed for account ${normalizedAccountId}.`, "success");
       }
     } catch {
       setBalance(null);
@@ -107,9 +122,10 @@ export default function Home() {
   }, [pushToast]);
 
   async function handleMutation(type: "deposit" | "withdraw") {
+    const normalizedAccountId = draftAccountId.trim();
     const amountNumber = Number(amount);
 
-    if (!accountId.trim() || Number.isNaN(amountNumber) || amountNumber <= 0) {
+    if (!normalizedAccountId || Number.isNaN(amountNumber) || amountNumber <= 0) {
       const message = "Please enter a valid account ID and amount.";
       setErrorMessage(message);
       pushToast(message, "error");
@@ -132,7 +148,7 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          account_id: accountId,
+          account_id: normalizedAccountId,
           amount: amountNumber,
         }),
       });
@@ -148,11 +164,20 @@ export default function Home() {
 
       setBalance(data.new_balance ?? balance);
       setLastUpdated(data.timestamp ?? new Date().toISOString());
+      setAccountId(normalizedAccountId);
+      setLatestOperation({
+        type: type === "deposit" ? "DEPOSIT" : "WITHDRAW",
+        accountId: data.account_id ?? normalizedAccountId,
+        amount: data.amount ?? amountNumber,
+        oldBalance: data.old_balance ?? 0,
+        newBalance: data.new_balance ?? 0,
+        timestamp: data.timestamp ?? new Date().toISOString(),
+      });
       pushToast(
         `${type === "deposit" ? "Deposit" : "Withdraw"} successful for $${amountNumber}.`,
         "success",
       );
-      await loadAccount(accountId, { silent: true });
+      await loadAccount(normalizedAccountId, { silent: true });
     } catch {
       const message = `The ${type} request could not be completed.`;
       setErrorMessage(message);
@@ -176,11 +201,11 @@ export default function Home() {
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      void loadAccount(accountId, { silent: true });
+      void loadAccount("1001", { silent: true });
     }, 0);
 
     return () => window.clearTimeout(timeout);
-  }, [accountId, loadAccount]);
+  }, [loadAccount]);
 
   useEffect(() => {
     if (toasts.length === 0) {
@@ -233,17 +258,18 @@ export default function Home() {
 
           <section className="grid gap-6 2xl:grid-cols-[430px_minmax(0,1fr)]">
             <ActionPanel
-              accountId={accountId}
+              accountId={draftAccountId}
               amount={amount}
               errorMessage={errorMessage}
+              latestOperation={latestOperation}
               isCheckingBalance={isCheckingBalance}
               isDepositing={isDepositing}
               isWithdrawing={isWithdrawing}
-              onAccountIdChange={setAccountId}
+              onAccountIdChange={setDraftAccountId}
               onAmountChange={setAmount}
               onCheckBalance={() => {
                 setActiveTab("Check Balance");
-                void loadAccount(accountId, { announce: true });
+                void loadAccount(draftAccountId, { announce: true });
               }}
               onDeposit={() => void handleMutation("deposit")}
               onWithdraw={() => void handleMutation("withdraw")}

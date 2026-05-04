@@ -61,6 +61,10 @@ export function SystemStatusCard({
               </span>
             </div>
             <div className="flex justify-between gap-4">
+              <span className="text-slate-400">$ zid</span>
+              <span className="font-semibold">{health?.zid ?? "--"}</span>
+            </div>
+            <div className="flex justify-between gap-4">
               <span className="text-slate-400">$ backend</span>
               <span className="font-semibold">Node.js (USS)</span>
             </div>
@@ -80,6 +84,7 @@ export function SystemStatusCard({
         </div>
 
         <div className="mt-5 space-y-3">
+          <InfoRow label="Health endpoint" value="/health" />
           <InfoRow label="Latest movement" value={lastTransaction?.type ?? "No activity"} />
           <InfoRow
             label="Last timestamp"

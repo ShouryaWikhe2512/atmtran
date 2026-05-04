@@ -28,7 +28,9 @@ export function Header({
           </Badge>
           <Badge variant="secondary" className="px-4 py-2 text-sm">
             <span className="h-2 w-2 rounded-full bg-blue-600" />
-            {health?.status === "UP" ? "Connected to z/OS" : "Checking z/OS status"}
+            {health?.status === "UP"
+              ? `Connected to z/OS${health.zid ? ` • ${health.zid}` : ""}`
+              : "Checking z/OS status"}
           </Badge>
         </div>
       </CardContent>

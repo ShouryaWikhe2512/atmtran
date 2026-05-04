@@ -8,13 +8,30 @@ import {
   CardTitle,
 } from "./ui/Card";
 import { Input } from "./ui/Input";
+import type { OperationSummary } from "./dashboard-types";
 
 const quickAmounts = [100, 250, 500, 1000];
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatTimestamp(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
 
 export function ActionPanel({
   accountId,
   amount,
   errorMessage,
+  latestOperation,
   isCheckingBalance,
   isDepositing,
   isWithdrawing,
@@ -27,6 +44,7 @@ export function ActionPanel({
   accountId: string;
   amount: string;
   errorMessage: string | null;
+  latestOperation: OperationSummary | null;
   isCheckingBalance: boolean;
   isDepositing: boolean;
   isWithdrawing: boolean;
@@ -103,6 +121,60 @@ export function ActionPanel({
               Node.js on USS invokes TSO-hosted REXX scripts and updates flat datasets through
               EXECIO for a real mainframe transaction flow.
             </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-900">Latest API response</p>
+              {latestOperation ? (
+                <Badge variant={latestOperation.type === "DEPOSIT" ? "success" : "warning"}>
+                  {latestOperation.type}
+                </Badge>
+              ) : null}
+            </div>
+
+            {latestOperation ? (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Account</p>
+                  <p className="mt-1 font-mono text-sm font-semibold text-slate-950">
+                    {latestOperation.accountId}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Amount</p>
+                  <p className="mt-1 font-mono text-sm font-semibold text-slate-950">
+                    {formatCurrency(latestOperation.amount)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                    Old Balance
+                  </p>
+                  <p className="mt-1 font-mono text-sm font-semibold text-slate-950">
+                    {formatCurrency(latestOperation.oldBalance)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                    New Balance
+                  </p>
+                  <p className="mt-1 font-mono text-sm font-semibold text-slate-950">
+                    {formatCurrency(latestOperation.newBalance)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 sm:col-span-2">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Timestamp</p>
+                  <p className="mt-1 font-mono text-sm font-semibold text-slate-950">
+                    {formatTimestamp(latestOperation.timestamp)}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-slate-500">
+                Deposit and withdraw responses will be rendered here in a clean summary view.
+              </p>
+            )}
           </div>
 
           {errorMessage ? (

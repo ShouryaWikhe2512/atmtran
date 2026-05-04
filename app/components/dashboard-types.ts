@@ -40,3 +40,12 @@ export type ToastMessage = {
   message: string;
   tone: "success" | "error";
 };
+
+export type OperationSummary = {
+  type: "DEPOSIT" | "WITHDRAW";
+  accountId: string;
+  amount: number;
+  oldBalance: number;
+  newBalance: number;
+  timestamp: string;
+};
